@@ -3,6 +3,8 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { CalendarView } from './components/calendar/CalendarView';
 import { TasksView } from './components/tasks/TasksView';
+import { TranscriptionView } from './components/transcription/TranscriptionView';
+import { RagChatView } from './components/chat/RagChatView';
 import { LiveMeetingModal } from './components/live/LiveMeetingModal';
 import { useMeetingContext } from './context/MeetingContext';
 import {
@@ -183,133 +185,11 @@ export const App: React.FC = () => {
           {/* 3. ACTION ITEMS STUDIO (User & AI Table Creation, Export, Filtering) */}
           {activeNav === 'tasks' && <TasksView />}
 
-          {/* 4. AUDIO UPLOAD PLACEHOLDER (Reserved for Core stage) */}
-          {activeNav === 'upload' && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '60px 20px',
-                background: 'var(--bg-card)',
-                border: '1px dashed var(--border-medium)',
-                borderRadius: 'var(--radius-lg)',
-                backdropFilter: 'blur(16px)',
-                textAlign: 'center',
-                maxWidth: '800px',
-                margin: '40px auto'
-              }}
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--accent-primary)',
-                  marginBottom: '16px'
-                }}
-              >
-                <UploadCloud size={32} />
-              </div>
+          {/* 4. AUDIO TRANSCRIPTION & DIARIZATION */}
+          {activeNav === 'upload' && <TranscriptionView />}
 
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
-                Автономная локальная транскрибация
-              </h2>
-
-              <p
-                style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-muted)',
-                  maxWidth: '520px',
-                  margin: '8px 0 20px',
-                  lineHeight: 1.6
-                }}
-              >
-                Поддержка файлов <strong>MP3, WAV, M4A</strong> с последующей генерацией Executive Summary, решений и Action Items. Этот модуль будет подключен на основном этапе разработки с Faster-Whisper и Ollama.
-              </p>
-
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.8rem',
-                  color: '#6ee7b7'
-                }}
-              >
-                <ShieldCheck size={16} />
-                <span>100% Offline: аудиозаписи не покинут ваше устройство</span>
-              </div>
-            </div>
-          )}
-
-          {/* 5. RAG CHAT PLACEHOLDER */}
-          {activeNav === 'chat' && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '60px 20px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-lg)',
-                backdropFilter: 'blur(16px)',
-                textAlign: 'center',
-                maxWidth: '800px',
-                margin: '40px auto'
-              }}
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  background: 'rgba(6, 182, 212, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--accent-secondary)',
-                  marginBottom: '16px'
-                }}
-              >
-                <Bot size={32} />
-              </div>
-
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
-                Интерактивный RAG-чат по встрече
-              </h2>
-
-              <p
-                style={{
-                  fontSize: '0.875rem',
-                  color: 'var(--text-muted)',
-                  maxWidth: '520px',
-                  margin: '8px 0 20px',
-                  lineHeight: 1.6
-                }}
-              >
-                Бонусная возможность ТЗ: возможность задавать вопросы по содержанию записи («Что спикер А сказал про бюджет?»). Будет активирована после подключения локального LLM-инференса.
-              </p>
-
-              <button
-                className="btn btn-secondary"
-                onClick={() => setActiveNav('calendar')}
-              >
-                Вернуться в календарь
-              </button>
-            </div>
-          )}
+          {/* 5. RAG CHAT */}
+          {activeNav === 'chat' && <RagChatView />}
         </main>
       </div>
 

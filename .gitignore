@@ -1,0 +1,86 @@
+# ==============================================================================
+# Node / Frontend (React + TypeScript + Vite)
+# ==============================================================================
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+frontend/dist-ssr/
+*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==============================================================================
+# Python / Django
+# ==============================================================================
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*/__pycache__/
+**/*.pyc
+
+# Virtual Environments
+.venv/
+backend/.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Django Database & Uploaded Media
+*.sqlite3
+db.sqlite3
+backend/db.sqlite3
+media/
+backend/media/
+audio_recordings/
+backend/media/audio_recordings/
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+
+# Environment variables & Local settings
+.env
+.env.*
+!.env.example
+local_settings.py
+backend/config/local_settings.py
+
+# Pytest / Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==============================================================================
+# OS & IDE Files
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Code Editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*~
+*.bak
+
+# Temporary files
+scratch/
+*.tmp
