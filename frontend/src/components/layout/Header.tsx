@@ -1,7 +1,6 @@
 import React from 'react';
-import { Search, Globe, Plus } from 'lucide-react';
+import { Search, Globe } from 'lucide-react';
 import { useMeetingContext } from '../../context/MeetingContext';
-import { OfflineBadge } from './OfflineBadge';
 
 export const Header: React.FC = () => {
   const {
@@ -9,35 +8,29 @@ export const Header: React.FC = () => {
     searchQuery,
     setSearchQuery,
     language,
-    setLanguage,
-    setIsAddMeetingOpen,
-    setIsLiveMeetingOpen
+    setLanguage
   } = useMeetingContext();
 
   const titles: Record<string, { title: string; subtitle: string }> = {
-    calendar: {
-      title: 'Календарь и дедлайны',
-      subtitle: 'Интерактивное расписание встреч и сроков выполнения поручений'
-    },
-    meetings: {
-      title: 'Протоколы совещаний',
-      subtitle: 'Executive Summary, принятые решения и открытые вопросы'
-    },
     upload: {
-      title: 'Автономная транскрибация',
-      subtitle: 'Локальная обработка аудио через Faster-Whisper без внешних API'
+      title: 'Транскрибация аудио',
+      subtitle: 'Распознавание речи, тайминги и разделение по спикерам из MP3 / WAV / M4A'
     },
     tasks: {
       title: 'Таблица поручений',
-      subtitle: 'Контроль исполнителей, сроков и приоритетов задач'
+      subtitle: 'Задачи, исполнители, сроки и приоритеты, извлеченные из аудио'
+    },
+    calendar: {
+      title: 'Календарь дедлайнов',
+      subtitle: 'Сроки выполнения поручений на интерактивном календаре'
     },
     chat: {
-      title: 'ИИ-Ассистент по встречам',
-      subtitle: 'Локальный RAG-поиск ответов по содержанию стенограмм'
+      title: 'ИИ-Ассистент (RAG)',
+      subtitle: 'Интеллектуальные ответы по стенограмме аудио в сжатом и полном режимах'
     }
   };
 
-  const currentInfo = titles[activeNav] || titles.calendar;
+  const currentInfo = titles[activeNav] || titles.upload;
 
   return (
     <header
@@ -94,7 +87,7 @@ export const Header: React.FC = () => {
           />
           <input
             type="text"
-            placeholder="Поиск по встречам, задачам, участникам..."
+            placeholder="Поиск по задачам, участникам, тексту..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -120,9 +113,6 @@ export const Header: React.FC = () => {
             }}
           />
         </div>
-
-        {/* Offline Badge */}
-        <OfflineBadge />
 
         {/* Language Switcher (RU / KZ / EN) */}
         <div
@@ -158,40 +148,6 @@ export const Header: React.FC = () => {
             </button>
           ))}
         </div>
-
-        {/* Action Button: Live Meeting (Google Meet Style) */}
-        <button
-          className="btn btn-secondary"
-          onClick={() => setIsLiveMeetingOpen(true)}
-          style={{
-            padding: '8px 14px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#fca5a5'
-          }}
-          title="Запустить онлайн-совещание в стиле Google Meet с живой стенограммой и фиксацией решений без споров"
-        >
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#ef4444',
-              animation: 'pulse 1.5s infinite'
-            }}
-          />
-          <span>Онлайн-совещание (Live)</span>
-        </button>
-
-        {/* Action Button: Add Meeting */}
-        <button
-          className="btn btn-primary"
-          onClick={() => setIsAddMeetingOpen(true)}
-          style={{ padding: '8px 14px' }}
-        >
-          <Plus size={16} />
-          <span>Новая встреча</span>
-        </button>
       </div>
     </header>
   );

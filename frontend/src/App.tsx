@@ -5,7 +5,6 @@ import { CalendarView } from './components/calendar/CalendarView';
 import { TasksView } from './components/tasks/TasksView';
 import { TranscriptionView } from './components/transcription/TranscriptionView';
 import { RagChatView } from './components/chat/RagChatView';
-import { LiveMeetingModal } from './components/live/LiveMeetingModal';
 import { useMeetingContext } from './context/MeetingContext';
 import {
   UploadCloud,
@@ -192,9 +191,6 @@ export const App: React.FC = () => {
           {activeNav === 'chat' && <RagChatView />}
         </main>
       </div>
-
-      {/* Google Meet Style Virtual Room Modal */}
-      <LiveMeetingModal />
     </div>
   );
 };

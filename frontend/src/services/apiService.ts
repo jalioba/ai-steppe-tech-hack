@@ -1,6 +1,5 @@
 import { Meeting } from '../types/meeting';
 import { ActionItem } from '../types/actionItem';
-import { INITIAL_MEETINGS, INITIAL_ACTION_ITEMS } from './mockData';
 import { extractActionItemsFromText, ActionItemDraft } from './aiExtractorService';
 
 export interface CreateMeetingDto {
@@ -63,9 +62,9 @@ class LocalMockApiService implements ApiService {
   private loadMeetings(): Meeting[] {
     try {
       const cached = localStorage.getItem(STORAGE_KEY_MEETINGS);
-      return cached ? JSON.parse(cached) : INITIAL_MEETINGS;
+      return cached ? JSON.parse(cached) : [];
     } catch {
-      return INITIAL_MEETINGS;
+      return [];
     }
   }
 
@@ -76,9 +75,9 @@ class LocalMockApiService implements ApiService {
   private loadActionItems(): ActionItem[] {
     try {
       const cached = localStorage.getItem(STORAGE_KEY_ACTIONS);
-      return cached ? JSON.parse(cached) : INITIAL_ACTION_ITEMS;
+      return cached ? JSON.parse(cached) : [];
     } catch {
-      return INITIAL_ACTION_ITEMS;
+      return [];
     }
   }
 

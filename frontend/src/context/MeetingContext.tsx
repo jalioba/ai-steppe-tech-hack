@@ -70,7 +70,7 @@ const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
-  const [activeNav, setActiveNav] = useState<NavTab>('calendar');
+  const [activeNav, setActiveNav] = useState<NavTab>('upload');
   const [language, setLanguage] = useState<AppLanguage>('ru');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -92,6 +92,12 @@ export const MeetingProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Load initial data through apiService
   useEffect(() => {
     let isMounted = true;
+    // Clear old sample mock cache if present
+    if (localStorage.getItem('ai_meeting_mock_cleared') !== 'true') {
+      localStorage.removeItem('ai_meeting_intelligence_meetings');
+      localStorage.removeItem('ai_meeting_intelligence_actions');
+      localStorage.setItem('ai_meeting_mock_cleared', 'true');
+    }
     Promise.all([apiService.getMeetings(), apiService.getActionItems()]).then(
       ([meetingsData, actionItemsData]) => {
         if (isMounted) {
