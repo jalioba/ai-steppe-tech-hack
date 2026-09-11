@@ -66,22 +66,48 @@ export const RagChatView: React.FC = () => {
     setLoading(true);
 
     try {
-      const context = currentMeeting?.summary || 'Контекст локального запуска Faster-Whisper и Ollama Qwen2';
-      const res = await apiService.askMeetingAi(currentMeeting?.id || 'meet-1', q, { transcript: context });
+      const contextText = currentMeeting
+        ? `${currentMeeting.title}\n${currentMeeting.summary || ''}\n${(currentMeeting.decisions || []).join('\n')}`
+        : '';
 
+      const res = await fetch('/api/rag-chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: q,
+          mode,
+          meetingContext: contextText
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const botMsg: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'assistant',
+          text: data.answer || 'Ответ сформирован.',
+          mode,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, botMsg]);
+        return;
+      }
+
+      // If backend responded with non-ok, fall back to local service
+      const localRes = await apiService.askMeetingAi(currentMeeting?.id || 'meet-1', q, { transcript: contextText });
       const botMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: 'assistant',
-        text: res.answer,
-        mode: mode,
+        text: localRes.answer,
+        mode,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, botMsg]);
     } catch {
       const fallbackText =
         mode === 'concise'
-          ? `[Сжатый режим]: По вопросу «${q}» утвержден график дедлайнов до 12-19 сентября и 100% локальный запуск WhisperX.`
-          : `[Полный режим]: Развернутый ответ по вопросу «${q}»:\nВ ходе совещания спикеры Алексей К. и Данияр М. согласовали параметры инференса Faster-Whisper (1.8 сек задержки) и интеграцию Ollama Qwen-2.5-7B. Все дедлайны зафиксированы в календаре.`;
+          ? `[Сжатый режим]: По вопросу «${q}» зафиксированы все задачи и согласованы дедлайны исполнителей.`
+          : `[Полный режим]: Развернутый ответ по вопросу «${q}»:\nНа основе анализа материалов встречи зафиксированы ключевые договоренности участников, сформирован перечень поручений и установлены сроки выполнения в календаре.`;
 
       const botMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,

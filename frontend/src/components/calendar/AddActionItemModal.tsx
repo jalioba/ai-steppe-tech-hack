@@ -3,13 +3,6 @@ import { X, CheckSquare, Calendar, User, AlertCircle, Plus } from 'lucide-react'
 import { useMeetingContext } from '../../context/MeetingContext';
 import { Priority } from '../../types/actionItem';
 
-const TEAM_PRESETS = [
-  'Алексей К.',
-  'Данияр М.',
-  'Айгерим С.',
-  'Ерлан Т.',
-  'Руслан Д.'
-];
 
 export const AddActionItemModal: React.FC = () => {
   const {
@@ -113,30 +106,31 @@ export const AddActionItemModal: React.FC = () => {
                 value={assignee}
                 onChange={(e) => setAssignee(e.target.value)}
               />
-              {/* Quick Preset Chips */}
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', alignSelf: 'center' }}>
-                  Быстрый выбор:
-                </span>
-                {TEAM_PRESETS.map((member) => (
-                  <button
-                    key={member}
-                    type="button"
-                    onClick={() => setAssignee(member)}
-                    style={{
-                      background: assignee === member ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.05)',
-                      color: assignee === member ? '#ffffff' : 'var(--text-muted)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '2px 8px',
-                      fontSize: '0.7rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {member}
-                  </button>
-                ))}
-              </div>
+              {meetings.length > 0 && meetings.some(m => (m.participants || []).length > 0) && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', alignSelf: 'center' }}>
+                    Участники:
+                  </span>
+                  {Array.from(new Set(meetings.flatMap((m) => m.participants || []))).filter(Boolean).map((member) => (
+                    <button
+                      key={member}
+                      type="button"
+                      onClick={() => setAssignee(member)}
+                      style={{
+                        background: assignee === member ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.05)',
+                        color: assignee === member ? '#ffffff' : 'var(--text-muted)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '2px 8px',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {member}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-row">

@@ -70,114 +70,148 @@ export const App: React.FC = () => {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {meetings.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      padding: '20px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-lg)',
-                      backdropFilter: 'blur(16px)',
-                      transition: 'border-color var(--transition-fast)',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                      setSelectedEvent({
-                        id: m.id,
-                        type: 'meeting',
-                        title: m.title,
-                        date: m.date,
-                        status: m.status,
-                        rawItem: m
-                      });
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.borderColor = 'var(--border-active)')
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor = 'var(--border-subtle)')
-                    }
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '8px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span
-                          className={`badge ${
-                            m.status === 'processed' ? 'badge-low' : 'badge-cyan'
-                          }`}
-                        >
-                          {m.status === 'processed' ? 'Обработана ИИ' : 'Запланирована'}
-                        </span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
-                          {formatDateDisplay(m.date)} • {m.startTime} - {m.endTime}
-                        </span>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--accent-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        Подробнее <ArrowRight size={13} />
-                      </span>
-                    </div>
-
+              {meetings.length === 0 ? (
+                <div
+                  style={{
+                    padding: '60px 24px',
+                    textAlign: 'center',
+                    background: 'var(--bg-card)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '14px'
+                  }}
+                >
+                  <FileText size={36} style={{ color: 'var(--accent-primary)', opacity: 0.8 }} />
+                  <div>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#ffffff' }}>
-                      {m.title}
+                      Протоколов совещаний пока нет
                     </h3>
-
-                    {m.summary && (
-                      <p
-                        style={{
-                          fontSize: '0.85rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '8px',
-                          lineHeight: 1.5
-                        }}
-                      >
-                        {m.summary}
-                      </p>
-                    )}
-
-                    {m.participants && (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', maxWidth: '500px' }}>
+                      Загрузите аудиозапись во вкладке «Транскрибация аудио» для автоматической расшифровки речи, составления протокола и назначения дедлайнов.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setActiveNav('upload')}
+                    style={{ marginTop: '8px' }}
+                  >
+                    <UploadCloud size={16} />
+                    <span>Загрузить аудиозапись</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {meetings.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        padding: '20px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-lg)',
+                        backdropFilter: 'blur(16px)',
+                        transition: 'border-color var(--transition-fast)',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setSelectedEvent({
+                          id: m.id,
+                          type: 'meeting',
+                          title: m.title,
+                          date: m.date,
+                          status: m.status,
+                          rawItem: m
+                        });
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor = 'var(--border-active)')
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor = 'var(--border-subtle)')
+                      }
+                    >
                       <div
                         style={{
-                          marginTop: '12px',
                           display: 'flex',
-                          gap: '6px',
-                          flexWrap: 'wrap'
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '8px'
                         }}
                       >
-                        {m.participants.map((p) => (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span
-                            key={p}
-                            style={{
-                              fontSize: '0.725rem',
-                              background: 'rgba(255, 255, 255, 0.05)',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              color: 'var(--text-subtle)'
-                            }}
+                            className={`badge ${
+                              m.status === 'processed' ? 'badge-low' : 'badge-cyan'
+                            }`}
                           >
-                            {p}
+                            {m.status === 'processed' ? 'Обработана ИИ' : 'Запланирована'}
                           </span>
-                        ))}
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                            {formatDateDisplay(m.date)} • {m.startTime} - {m.endTime}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--accent-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          Подробнее <ArrowRight size={13} />
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#ffffff' }}>
+                        {m.title}
+                      </h3>
+
+                      {m.summary && (
+                        <p
+                          style={{
+                            fontSize: '0.85rem',
+                            color: 'var(--text-muted)',
+                            marginTop: '8px',
+                            lineHeight: 1.5
+                          }}
+                        >
+                          {m.summary}
+                        </p>
+                      )}
+
+                      {m.participants && (
+                        <div
+                          style={{
+                            marginTop: '12px',
+                            display: 'flex',
+                            gap: '6px',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          {m.participants.map((p) => (
+                            <span
+                              key={p}
+                              style={{
+                                fontSize: '0.725rem',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                color: 'var(--text-subtle)'
+                              }}
+                            >
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

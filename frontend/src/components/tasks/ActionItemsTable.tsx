@@ -71,16 +71,31 @@ export const ActionItemsTable: React.FC<ActionItemsTableProps> = ({ items }) => 
     return (
       <div
         style={{
-          padding: '60px 20px',
+          padding: '60px 24px',
           textAlign: 'center',
           background: 'var(--bg-card)',
           borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-subtle)'
+          border: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px'
         }}
       >
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Поручений по заданным фильтрам не найдено.
+        <CheckCircle2 size={36} style={{ color: 'var(--accent-primary)', opacity: 0.8 }} />
+        <p style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600 }}>
+          Список поручений пуст
         </p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '460px' }}>
+          Загрузите аудиозапись во вкладке «Транскрибация аудио» для автоматической генерации задач и дедлайнов через ИИ, либо добавьте поручение вручную.
+        </p>
+        <button
+          className="btn btn-primary"
+          onClick={() => setActiveNav('upload')}
+          style={{ marginTop: '4px' }}
+        >
+          Загрузить аудиозапись
+        </button>
       </div>
     );
   }

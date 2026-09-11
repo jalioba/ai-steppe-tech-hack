@@ -171,8 +171,12 @@ class GenerateProtocolView(APIView):
                 )
                 action_items_created.append(ai)
         else:
+            latest_meeting = Meeting.objects.order_by('-created_at').first()
+            meeting_title = latest_meeting.title if latest_meeting else 'Аудиозапись'
             for item in extracted.get('actionItems', []):
-                ai = ActionItem(
+                ai = ActionItem.objects.create(
+                    meeting=latest_meeting,
+                    meeting_title=meeting_title,
                     title=item.get('title', 'Без названия'),
                     assignee=item.get('assignee', 'Не назначен'),
                     deadline=item.get('deadline', ''),

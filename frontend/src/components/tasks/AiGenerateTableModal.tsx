@@ -11,7 +11,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useMeetingContext } from '../../context/MeetingContext';
-import { extractActionItemsFromText, ActionItemDraft, SAMPLE_TRANSCRIPTS } from '../../services/aiExtractorService';
+import { extractActionItemsFromText, ActionItemDraft } from '../../services/aiExtractorService';
 import { Priority } from '../../types/actionItem';
 
 export const AiGenerateTableModal: React.FC = () => {
@@ -154,30 +154,9 @@ export const AiGenerateTableModal: React.FC = () => {
         <div className="modal-body">
           {step === 'input' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Preset Sample Transcripts */}
-              <div>
-                <label className="form-label" style={{ marginBottom: '6px' }}>
-                  Быстрая демонстрация (готовые тексты встреч):
-                </label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {SAMPLE_TRANSCRIPTS.map((sample, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.75rem', padding: '6px 12px' }}
-                      onClick={() => setRawText(sample.text)}
-                    >
-                      <Sparkles size={13} style={{ color: 'var(--accent-secondary)' }} />
-                      <span>{sample.title}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Or Select From Existing Meeting */}
-              <div className="form-group">
-                <label className="form-label">Либо выбрать стенограмму из сохраненной встречи:</label>
+              {meetings.length > 0 && (
+                <div className="form-group">
+                  <label className="form-label">Выбрать стенограмму из обработанной встречи:</label>
                 <select
                   className="form-input"
                   value={selectedMeetingId}
@@ -191,6 +170,7 @@ export const AiGenerateTableModal: React.FC = () => {
                   ))}
                 </select>
               </div>
+              )}
 
               {/* Textarea */}
               <div className="form-group">

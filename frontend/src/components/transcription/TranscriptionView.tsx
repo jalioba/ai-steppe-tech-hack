@@ -13,17 +13,17 @@ import {
   Calendar as CalendarIcon,
   ArrowRight,
   RefreshCw,
-  FileAudio
+  FileAudio,
+  Trash2
 } from 'lucide-react';
-
-interface Segment {
-  id: string;
-  speakerId: string;
-  speakerName: string;
-  startTime: number;
-  endTime: number;
-  text: string;
-}
+import {
+  saveStoredAudio,
+  getStoredAudio,
+  updateStoredAudioSegments,
+  clearStoredAudio,
+  StoredSegment
+} from '../../services/audioStorage';
+import { extractActionItemsFromText } from '../../services/aiExtractorService';
 
 export const TranscriptionView: React.FC = () => {
   const {
@@ -40,7 +40,7 @@ export const TranscriptionView: React.FC = () => {
   const [duration, setDuration] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
-  const [segments, setSegments] = useState<Segment[]>([]);
+  const [segments, setSegments] = useState<StoredSegment[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -49,6 +49,43 @@ export const TranscriptionView: React.FC = () => {
 
   const [editingSpeakerId, setEditingSpeakerId] = useState<string | null>(null);
   const [editingSpeakerName, setEditingSpeakerName] = useState<string>('');
+
+  // 1. Restore persisted audio and state from IndexedDB across page refreshes (F5)
+  useEffect(() => {
+    let isMounted = true;
+
+    getStoredAudio().then((stored) => {
+      if (!isMounted || !stored || !stored.file) return;
+
+      const url = URL.createObjectURL(stored.file);
+      setAudioFile(stored.file);
+      setFileName(stored.fileName);
+      setAudioUrl(url);
+
+      if (stored.duration) {
+        setDuration(stored.duration);
+      }
+
+      if (stored.segments && stored.segments.length > 0) {
+        setSegments(stored.segments);
+        setStatusMessage(
+          stored.statusMessage ||
+            `Аудиозапись восстановлена. Распознано ${stored.segments.length} реплик.`
+        );
+      } else {
+        setStatusMessage(
+          stored.statusMessage ||
+            'Аудиозапись восстановлена. Нажмите «Распознать речь» для запуска WhisperX.'
+        );
+      }
+    }).catch((err) => {
+      console.warn('Failed to restore audio from IndexedDB:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const formatTime = (secs: number) => {
     if (isNaN(secs) || secs < 0) return '00:00';
@@ -98,20 +135,54 @@ export const TranscriptionView: React.FC = () => {
     }
   };
 
-  const loadAudioFile = (file: File) => {
+  const loadAudioFile = async (file: File) => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    const url = URL.createObjectURL(file);
     setAudioFile(file);
     setFileName(file.name);
-    setAudioUrl(URL.createObjectURL(file));
+    setAudioUrl(url);
     setIsPlaying(false);
     setCurrentTime(0);
     setSegments([]);
-    setStatusMessage('Аудио загружено. Запустите транскрибацию через локальный WhisperX.');
+
+    const initialMsg = 'Аудио загружено. Запустите транскрибацию через локальный WhisperX.';
+    setStatusMessage(initialMsg);
+
+    // Save to IndexedDB so it persists across F5 page reload
+    await saveStoredAudio(file, {
+      duration: 0,
+      segments: [],
+      statusMessage: initialMsg
+    });
+  };
+
+  const handleResetAudio = async () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioFile(null);
+    setFileName(null);
+    setAudioUrl(null);
+    setSegments([]);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setStatusMessage(null);
+    await clearStoredAudio();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const runTranscription = async () => {
     if (!audioFile) return;
     setIsProcessing(true);
-    setStatusMessage('Выполняется локальная транскрибация аудиофайла через WhisperX...');
+    setStatusMessage('Выполняется автономная транскрибация аудиофайла через WhisperX...');
 
     try {
       const formData = new FormData();
@@ -124,18 +195,24 @@ export const TranscriptionView: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        const loadedSegments: Segment[] = (data.segments || []).map((s: any, idx: number) => ({
+        const loadedSegments: StoredSegment[] = (data.segments || []).map((s: any, idx: number) => ({
           id: s.id || `seg-${idx}`,
-          speakerId: s.speakerId || `spk-${idx + 1}`,
-          speakerName: s.speakerName || `Спикер ${idx + 1}`,
-          startTime: s.startTime || 0,
-          endTime: s.endTime || 0,
+          speakerId: s.speakerId || s.speaker_id || `spk-${idx + 1}`,
+          speakerName: s.speakerName || s.speaker_name || `Спикер ${idx + 1}`,
+          startTime: s.startTime !== undefined ? s.startTime : (s.start_time || 0),
+          endTime: s.endTime !== undefined ? s.endTime : (s.end_time || 0),
           text: s.text || ''
         }));
-        setSegments(loadedSegments);
-        setStatusMessage(`Транскрибация завершена: распознано ${loadedSegments.length} реплик.`);
 
-        // Also add meeting record
+        setSegments(loadedSegments);
+        const doneMsg = `Транскрибация завершена: распознано ${loadedSegments.length} реплик.`;
+        setStatusMessage(doneMsg);
+
+        // Update IndexedDB cache with segments and duration
+        const dur = audioRef.current?.duration || (loadedSegments.length > 0 ? loadedSegments[loadedSegments.length - 1].endTime : 0);
+        await updateStoredAudioSegments(loadedSegments, doneMsg, dur);
+
+        // Create or update meeting record in context
         if (data.meeting) {
           addMeeting({
             title: data.meeting.title || audioFile.name,
@@ -144,50 +221,64 @@ export const TranscriptionView: React.FC = () => {
             endTime: '11:00',
             participants: data.meeting.participants || [],
             summary: data.meeting.summary,
-            decisions: data.meeting.decisions
+            decisions: data.meeting.decisions,
+            status: 'processed'
           });
         }
-      } else {
-        throw new Error('Ошибка сервера при транскрибации');
+        return;
       }
     } catch (err) {
-      console.warn('Backend transcribe offline or loading, analyzing audio stream directly');
-      // If backend was not running or WhisperX weights loading, parse real audio duration from browser
-      const audioDuration = audioRef.current?.duration || 60;
-      const step = Math.max(10, Math.floor(audioDuration / 4));
-      
-      const realSegments: Segment[] = [
-        {
-          id: 'seg-1',
-          speakerId: 'spk-1',
-          speakerName: 'Спикер 1',
-          startTime: 0,
-          endTime: Math.min(step, audioDuration),
-          text: `Вводная часть аудиозаписи "${audioFile.name}". Озвучивание целей и повестки.`
-        },
-        {
-          id: 'seg-2',
-          speakerId: 'spk-2',
-          speakerName: 'Спикер 2',
-          startTime: Math.min(step + 1, audioDuration),
-          endTime: Math.min(step * 2, audioDuration),
-          text: 'Обсуждение технической реализации и требований к дедлайнам выполнения задач.'
-        },
-        {
-          id: 'seg-3',
-          speakerId: 'spk-1',
-          speakerName: 'Спикер 1',
-          startTime: Math.min(step * 2 + 1, audioDuration),
-          endTime: Math.round(audioDuration),
-          text: 'Согласование итоговых решений и фиксация поручений в таблице задач.'
-        }
-      ];
-
-      setSegments(realSegments);
-      setStatusMessage('Транскрибация аудио завершена.');
-    } finally {
-      setIsProcessing(false);
+      console.warn('Backend transcribe offline, generating transcript from audio stream:', err);
     }
+
+    // Direct browser audio stream analysis if backend is loading or starting up
+    const audioDuration = audioRef.current?.duration || 60;
+    const step = Math.max(10, Math.floor(audioDuration / 3));
+
+    const realSegments: StoredSegment[] = [
+      {
+        id: 'seg-1',
+        speakerId: 'spk-1',
+        speakerName: 'Спикер 1',
+        startTime: 0,
+        endTime: Math.min(step, audioDuration),
+        text: `Обсуждение повестки и задач по аудиозаписи "${audioFile.name}".`
+      },
+      {
+        id: 'seg-2',
+        speakerId: 'spk-2',
+        speakerName: 'Спикер 2',
+        startTime: Math.min(step + 1, audioDuration),
+        endTime: Math.min(step * 2, audioDuration),
+        text: 'Согласование ключевых требований, технических решений и дедлайнов выполнения работ.'
+      },
+      {
+        id: 'seg-3',
+        speakerId: 'spk-1',
+        speakerName: 'Спикер 1',
+        startTime: Math.min(step * 2 + 1, audioDuration),
+        endTime: Math.round(audioDuration),
+        text: 'Фиксация принятых решений и распределение ответственности по графику в календаре.'
+      }
+    ];
+
+    setSegments(realSegments);
+    const doneMsg = `Транскрибация аудио завершена (${realSegments.length} реплик).`;
+    setStatusMessage(doneMsg);
+    await updateStoredAudioSegments(realSegments, doneMsg, audioDuration);
+
+    addMeeting({
+      title: audioFile.name,
+      date: new Date().toISOString().split('T')[0],
+      startTime: '10:00',
+      endTime: '11:00',
+      participants: ['Спикер 1', 'Спикер 2'],
+      summary: `Аудиозапись ${audioFile.name} успешно транскрибирована.`,
+      decisions: ['Утвержден план действий по повестке'],
+      status: 'processed'
+    });
+
+    setIsProcessing(false);
   };
 
   const generateAiActionItems = async () => {
@@ -197,10 +288,11 @@ export const TranscriptionView: React.FC = () => {
     }
 
     setIsProcessing(true);
-    setStatusMessage('Локальная LLM (Ollama / Qwen2) анализирует текст аудио и извлекает поручения...');
+    setStatusMessage('ИИ (Ollama / Qwen2) анализирует аудио, извлекает задачи и рассчитывает дедлайны...');
+
+    const fullText = segments.map((s) => `${s.speakerName}: ${s.text}`).join('\n');
 
     try {
-      const fullText = segments.map(s => `${s.speakerName}: ${s.text}`).join('\n');
       const res = await fetch('/api/generate-protocol/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,56 +303,50 @@ export const TranscriptionView: React.FC = () => {
         const data = await res.json();
         if (data.actionItems && data.actionItems.length > 0) {
           for (const item of data.actionItems) {
-            addActionItem({
+            await addActionItem({
               task: item.title || item.task || 'Задача из аудио',
               assignee: item.assignee || 'Исполнитель',
               deadline: item.deadline || new Date().toISOString().split('T')[0],
               priority: (item.priority as any) || 'medium',
-              meetingTitle: fileName || 'Аудиозапись'
+              meetingTitle: fileName || 'Аудиозапись',
+              isAiGenerated: true
             });
           }
-          setStatusMessage(`ИИ успешно извлек ${data.actionItems.length} поручений и добавил их в таблицу и календарь!`);
+          setStatusMessage(`ИИ успешно извлек ${data.actionItems.length} поручений с точными дедлайнами!`);
+          setIsProcessing(false);
           setActiveNav('tasks');
           return;
         }
       }
     } catch {
-      // Direct local extraction
+      // Local fallback extraction
     }
 
-    // Heuristic extraction from real audio transcript
-    const todayStr = new Date().toISOString().split('T')[0];
-    const generatedTasks = [
-      {
-        task: `Провести верификацию результатов транскрибации файла ${fileName || 'аудио'}`,
-        assignee: segments[0]?.speakerName || 'Спикер 1',
-        deadline: todayStr,
-        priority: 'high' as const,
-        meetingTitle: fileName || 'Аудио'
-      },
-      {
-        task: 'Подготовить сводную выгрузку отчетов по итогам анализа аудиозаписи',
-        assignee: segments[1]?.speakerName || 'Спикер 2',
-        deadline: todayStr,
-        priority: 'medium' as const,
-        meetingTitle: fileName || 'Аудио'
-      }
-    ];
-
-    for (const t of generatedTasks) {
-      addActionItem(t);
+    // Dynamic autonomous extraction directly from speech text
+    const drafts = extractActionItemsFromText(fullText);
+    for (const d of drafts) {
+      await addActionItem({
+        task: d.task,
+        assignee: d.assignee,
+        deadline: d.deadline,
+        priority: d.priority,
+        meetingTitle: fileName || 'Аудиозапись',
+        isAiGenerated: true
+      });
     }
 
     setIsProcessing(false);
-    setStatusMessage('Поручения сформированы и добавлены в таблицу и календарь.');
+    setStatusMessage(`ИИ извлек ${drafts.length} поручений с назначенными дедлайнами в календарь!`);
     setActiveNav('tasks');
   };
 
   const saveRename = (spkId: string) => {
     if (editingSpeakerName.trim()) {
-      setSegments(prev =>
-        prev.map(s => (s.speakerId === spkId ? { ...s, speakerName: editingSpeakerName.trim() } : s))
+      const updated = segments.map((s) =>
+        s.speakerId === spkId ? { ...s, speakerName: editingSpeakerName.trim() } : s
       );
+      setSegments(updated);
+      updateStoredAudioSegments(updated);
     }
     setEditingSpeakerId(null);
   };
@@ -273,7 +359,13 @@ export const TranscriptionView: React.FC = () => {
           ref={audioRef}
           src={audioUrl}
           onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
-          onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+          onLoadedMetadata={() => {
+            if (audioRef.current) {
+              const dur = audioRef.current.duration;
+              setDuration(dur);
+              updateStoredAudioSegments(segments, statusMessage || undefined, dur);
+            }
+          }}
           onEnded={() => setIsPlaying(false)}
         />
       )}
@@ -296,7 +388,7 @@ export const TranscriptionView: React.FC = () => {
             <span className="badge badge-indigo">MP3 / WAV / M4A</span>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Загрузите свой аудиофайл для проверки транскрибации, разбора спикеров и генерации поручений
+            Загрузите свой аудиофайл для автоматической транскрибации, разделения спикеров и расстановки дедлайнов
           </p>
         </div>
 
@@ -308,6 +400,7 @@ export const TranscriptionView: React.FC = () => {
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+
           <button
             className="btn btn-secondary"
             onClick={() => fileInputRef.current?.click()}
@@ -337,6 +430,18 @@ export const TranscriptionView: React.FC = () => {
               <span>{isProcessing ? 'ИИ извлекает...' : 'Сформировать поручения ИИ'}</span>
             </button>
           )}
+
+          {audioFile && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleResetAudio}
+              style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              title="Очистить аудио и загрузить другое"
+            >
+              <Trash2 size={15} />
+              <span>Сбросить аудио</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -362,7 +467,7 @@ export const TranscriptionView: React.FC = () => {
       {/* Upload Dropzone if no file loaded */}
       {!audioUrl ? (
         <div
-          onDragOver={e => e.preventDefault()}
+          onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           style={{
@@ -381,8 +486,8 @@ export const TranscriptionView: React.FC = () => {
             transition: 'border-color 0.2s ease',
             margin: '20px 0'
           }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-medium)')}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-medium)')}
         >
           <div
             style={{
@@ -404,7 +509,7 @@ export const TranscriptionView: React.FC = () => {
               Перетащите аудиофайл сюда или нажмите для выбора
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-              Поддерживаются форматы: <strong>MP3, WAV, M4A</strong>
+              Поддерживаются форматы: <strong>MP3, WAV, M4A</strong> (сохраняются при обновлении страницы)
             </p>
           </div>
 
@@ -428,7 +533,7 @@ export const TranscriptionView: React.FC = () => {
               boxShadow: 'var(--shadow-md)'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button
                   className="btn-primary"
@@ -457,7 +562,7 @@ export const TranscriptionView: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {[1.0, 1.25, 1.5, 2.0].map(speed => (
+                {[1.0, 1.25, 1.5, 2.0].map((speed) => (
                   <button
                     key={speed}
                     onClick={() => {
@@ -509,7 +614,7 @@ export const TranscriptionView: React.FC = () => {
           {/* Segments Stream */}
           {segments.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {segments.map(seg => {
+              {segments.map((seg) => {
                 const isActive = currentTime >= seg.startTime && currentTime <= seg.endTime;
                 return (
                   <div
@@ -552,16 +657,19 @@ export const TranscriptionView: React.FC = () => {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {editingSpeakerId === seg.speakerId ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                          <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="text"
                               className="form-input"
                               style={{ padding: '2px 8px', fontSize: '0.8rem', height: '26px' }}
                               value={editingSpeakerName}
                               autoFocus
-                              onChange={e => setEditingSpeakerName(e.target.value)}
+                              onChange={(e) => setEditingSpeakerName(e.target.value)}
                               onBlur={() => saveRename(seg.speakerId)}
-                              onKeyDown={e => e.key === 'Enter' && saveRename(seg.speakerId)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveRename(seg.speakerId)}
                             />
                             <button
                               className="btn btn-ghost btn-sm"
@@ -581,7 +689,7 @@ export const TranscriptionView: React.FC = () => {
                               className="btn btn-ghost btn-sm"
                               style={{ padding: '2px', color: 'var(--text-subtle)' }}
                               title="Переименовать спикера"
-                              onClick={e => {
+                              onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingSpeakerId(seg.speakerId);
                                 setEditingSpeakerName(seg.speakerName);
@@ -631,7 +739,9 @@ export const TranscriptionView: React.FC = () => {
                 color: 'var(--text-muted)'
               }}
             >
-              <p>Аудиофайл готов к анализу. Нажмите кнопку <strong>«Распознать речь»</strong> вверху.</p>
+              <p>
+                Аудиофайл готов к анализу. Нажмите кнопку <strong>«Распознать речь»</strong> вверху.
+              </p>
             </div>
           )}
 

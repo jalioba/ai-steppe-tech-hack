@@ -1,5 +1,5 @@
-import { Priority, ActionItem } from '../types/actionItem';
-import { addDays, format } from 'date-fns';
+import { Priority } from '../types/actionItem';
+import { addDays, format, endOfMonth } from 'date-fns';
 
 export interface ActionItemDraft {
   tempId: string;
@@ -10,14 +10,104 @@ export interface ActionItemDraft {
   selected: boolean;
 }
 
+const RU_MONTHS: Record<string, number> = {
+  'янв': 0, 'января': 0, 'январе': 0,
+  'фев': 1, 'февраля': 1, 'феврале': 1,
+  'мар': 2, 'марта': 2, 'марте': 2,
+  'апр': 3, 'апреля': 3, 'апреле': 3,
+  'май': 4, 'мая': 4, 'мае': 4,
+  'июн': 5, 'июня': 5, 'июне': 5,
+  'июл': 6, 'июля': 6, 'июле': 6,
+  'авг': 7, 'августа': 7, 'августе': 7,
+  'сен': 8, 'сентября': 8, 'сентябре': 8,
+  'окт': 9, 'октября': 9, 'октябре': 9,
+  'ноя': 10, 'ноября': 10, 'ноябре': 10,
+  'дек': 11, 'декабря': 11, 'декабре': 11
+};
+
 /**
- * Heuristic Local AI parser for meeting transcripts and notes
- * Compliant with 100% Offline ТЗ requirement.
+ * Parses deadline from text with relative phrases and explicit dates.
+ * If not specified, automatically assigns a deadline based on priority.
+ */
+export function extractDeadlineFromPhrase(phrase: string, priority: Priority = 'medium', baseDate: Date = new Date()): string {
+  const lower = phrase.toLowerCase();
+
+  // 1. ISO date YYYY-MM-DD
+  const isoMatch = phrase.match(/\b(202\d-[01]\d-[0-3]\d)\b/);
+  if (isoMatch) return isoMatch[1];
+
+  // 2. DD.MM or DD.MM.YYYY
+  const dotMatch = phrase.match(/\b([0-3]?\d)\.([01]?\d)(?:\.(202\d|\d{2}))?\b/);
+  if (dotMatch) {
+    const day = parseInt(dotMatch[1], 10);
+    const month = parseInt(dotMatch[2], 10) - 1;
+    let year = dotMatch[3] ? parseInt(dotMatch[3], 10) : baseDate.getFullYear();
+    if (year < 100) year += 2000;
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+  }
+
+  // 3. DD Month (Russian)
+  const monthMatch = lower.match(/(\d{1,2})\s+(январ[яе]|феврал[яе]|март[ае]|апрел[яе]|ма[яе]|июн[яе]|июл[яе]|август[ае]|сентябр[яе]|октябр[яе]|ноябр[яе]|декабр[яе])/);
+  if (monthMatch) {
+    const day = parseInt(monthMatch[1], 10);
+    const monthWord = monthMatch[2];
+    for (const [k, mIndex] of Object.entries(RU_MONTHS)) {
+      if (monthWord.startsWith(k)) {
+        const d = new Date(baseDate.getFullYear(), mIndex, day);
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+      }
+    }
+  }
+
+  // 4. Relative expressions
+  if (lower.includes('послезавтра')) {
+    return format(addDays(baseDate, 2), 'yyyy-MM-dd');
+  }
+  if (lower.includes('завтра')) {
+    return format(addDays(baseDate, 1), 'yyyy-MM-dd');
+  }
+
+  const daysMatch = lower.match(/через\s+(\d+)\s+(?:дн|ден|дня)/);
+  if (daysMatch) {
+    return format(addDays(baseDate, parseInt(daysMatch[1], 10)), 'yyyy-MM-dd');
+  }
+
+  if (lower.includes('через две недели')) {
+    return format(addDays(baseDate, 14), 'yyyy-MM-dd');
+  }
+  if (lower.includes('через неделю')) {
+    return format(addDays(baseDate, 7), 'yyyy-MM-dd');
+  }
+
+  if (lower.includes('конца недели') || lower.includes('концу недели') || lower.includes('к пятнице') || lower.includes('до пятницы')) {
+    const dayOfWeek = baseDate.getDay(); // 0 is Sunday, 5 is Friday
+    let diff = 5 - dayOfWeek;
+    if (diff <= 0) diff += 7;
+    return format(addDays(baseDate, diff), 'yyyy-MM-dd');
+  }
+
+  if (lower.includes('конца месяца') || lower.includes('концу месяца')) {
+    return format(endOfMonth(baseDate), 'yyyy-MM-dd');
+  }
+
+  // 5. Intelligent AI default deadline
+  if (priority === 'high') {
+    return format(addDays(baseDate, 2), 'yyyy-MM-dd');
+  } else if (priority === 'low') {
+    return format(addDays(baseDate, 7), 'yyyy-MM-dd');
+  } else {
+    return format(addDays(baseDate, 5), 'yyyy-MM-dd');
+  }
+}
+
+/**
+ * Dynamic Local AI parser for audio transcripts and notes
  */
 export function extractActionItemsFromText(
   text: string,
-  meetingId?: string,
-  meetingTitle?: string
+  _meetingId?: string,
+  _meetingTitle?: string
 ): ActionItemDraft[] {
   if (!text.trim()) return [];
 
@@ -27,20 +117,9 @@ export function extractActionItemsFromText(
     .filter((l) => l.length > 5);
 
   const drafts: ActionItemDraft[] = [];
-  const today = new Date(2026, 8, 11); // base date 11 Sep 2026
+  const today = new Date();
 
-  // Known team members list for extraction
-  const knownAssignees = [
-    'Алексей К.',
-    'Данияр М.',
-    'Айгерим С.',
-    'Ерлан Т.',
-    'Нурлан Б.',
-    'Руслан Д.',
-    'Алихан Ж.'
-  ];
-
-  // Action indicators in Russian
+  // Action indicators
   const actionKeywords = [
     'сделать',
     'подготовить',
@@ -56,43 +135,41 @@ export function extractActionItemsFromText(
     'выгрузить',
     'доработать',
     'оптимизировать',
-    'исправить'
+    'исправить',
+    'внедрить',
+    'запустить',
+    'поручить',
+    'задача',
+    'дедлайн',
+    'срок',
+    'нужно',
+    'надо',
+    'необходимо'
   ];
 
   let idCounter = 1;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const lower = line.toLowerCase();
 
-    // Check if line contains an action imperative or keyword
-    const hasAction =
-      actionKeywords.some((kw) => lower.includes(kw)) ||
-      lower.includes('поручить') ||
-      lower.includes('задача') ||
-      lower.includes('ответственн') ||
-      lower.includes('дедлайн') ||
-      lower.includes('нужно') ||
-      lower.includes('надо') ||
-      lower.includes('необходимо') ||
-      lower.includes('возьмет');
+    // Check if line contains an action keyword
+    const hasAction = actionKeywords.some((kw) => lower.includes(kw));
 
     if (hasAction) {
-      // 1. Assignee detection
-      let foundAssignee = 'Команда проекта';
-      for (const member of knownAssignees) {
-        const firstName = member.split(' ')[0].toLowerCase();
-        if (lower.includes(firstName)) {
-          foundAssignee = member;
-          break;
-        }
-      }
-      if (foundAssignee === 'Команда проекта') {
-        if (lower.includes('бэкенд') || lower.includes('django') || lower.includes('api')) {
-          foundAssignee = 'Данияр М.';
-        } else if (lower.includes('whisper') || lower.includes('ai') || lower.includes('модел')) {
-          foundAssignee = 'Алексей К.';
-        } else if (lower.includes('фронтенд') || lower.includes('ui') || lower.includes('календар')) {
-          foundAssignee = 'Айгерим С.';
+      // 1. Assignee detection from speaker or speech turn
+      let foundAssignee = 'Исполнитель';
+      let taskBody = line;
+
+      if (line.includes(':')) {
+        const parts = line.split(':');
+        foundAssignee = parts[0].trim();
+        taskBody = parts.slice(1).join(':').trim();
+      } else {
+        // Look for speaker pattern in the text
+        const speakerMatch = line.match(/(Спикер\s*\d+|Участник\s*\d+)/i);
+        if (speakerMatch) {
+          foundAssignee = speakerMatch[1];
         }
       }
 
@@ -104,7 +181,8 @@ export function extractActionItemsFromText(
         lower.includes('asap') ||
         lower.includes('блокер') ||
         lower.includes('до завтра') ||
-        lower.includes('высокий')
+        lower.includes('высокий') ||
+        lower.includes('важно')
       ) {
         priority = 'high';
       } else if (
@@ -117,29 +195,12 @@ export function extractActionItemsFromText(
       }
 
       // 3. Deadline detection
-      let deadline = format(addDays(today, 5), 'yyyy-MM-dd');
-      if (lower.includes('до конца недели') || lower.includes('к пятнице')) {
-        deadline = '2026-09-18';
-      } else if (lower.includes('до 15 сентября') || lower.includes('15.09') || lower.includes('15 сентября')) {
-        deadline = '2026-09-15';
-      } else if (lower.includes('до 20 сентября') || lower.includes('20.09') || lower.includes('20 сентября')) {
-        deadline = '2026-09-20';
-      } else if (lower.includes('до 25 сентября') || lower.includes('25.09') || lower.includes('25 сентября')) {
-        deadline = '2026-09-25';
-      } else if (lower.includes('завтра')) {
-        deadline = format(addDays(today, 1), 'yyyy-MM-dd');
-      } else {
-        // Match explicit dates like YYYY-MM-DD or DD.MM
-        const isoMatch = line.match(/\b(202\d-[01]\d-[0-3]\d)\b/);
-        if (isoMatch) {
-          deadline = isoMatch[1];
-        }
-      }
+      const deadline = extractDeadlineFromPhrase(line, priority, today);
 
       // 4. Clean task title
-      let taskTitle = line
+      let taskTitle = taskBody
         .replace(/^[-*•\d.)\s]+/, '')
-        .replace(/^(задача|поручение|нужно|надо):\s*/i, '')
+        .replace(/^(задача|поручение|нужно|надо|необходимо):\s*/i, '')
         .trim();
       if (taskTitle.length > 120) {
         taskTitle = taskTitle.slice(0, 117) + '...';
@@ -148,7 +209,7 @@ export function extractActionItemsFromText(
 
       drafts.push({
         tempId: `draft-${Date.now()}-${idCounter++}`,
-        task: taskTitle,
+        task: taskTitle || 'Выполнить задачу из аудио',
         assignee: foundAssignee,
         deadline,
         priority,
@@ -157,44 +218,18 @@ export function extractActionItemsFromText(
     }
   }
 
-  // If no structured drafts extracted, provide sensible structured defaults based on the text
+  // If no specific action lines matched, generate action item from first lines of audio
   if (drafts.length === 0 && text.trim().length > 10) {
+    const preview = text.split('\n')[0].replace(/^[^:]+:\s*/, '').slice(0, 60);
     drafts.push({
       tempId: `draft-${Date.now()}-1`,
-      task: `Проработать ключевые решения из текста встречи: "${text.slice(0, 50)}..."`,
-      assignee: 'Данияр М.',
-      deadline: '2026-09-18',
+      task: `Проработать ключевые вопросы по аудио: "${preview}..."`,
+      assignee: 'Спикер 1',
+      deadline: extractDeadlineFromPhrase(preview, 'high', today),
       priority: 'high',
-      selected: true
-    });
-    drafts.push({
-      tempId: `draft-${Date.now()}-2`,
-      task: 'Синхронизировать задачи с бэкендом и обновить схему БД',
-      assignee: 'Алексей К.',
-      deadline: '2026-09-20',
-      priority: 'medium',
       selected: true
     });
   }
 
   return drafts;
 }
-
-/**
- * Preset sample meeting transcripts to showcase instant AI extraction
- */
-export const SAMPLE_TRANSCRIPTS = [
-  {
-    title: 'Планирование локального Whisper и Django бэкенда',
-    text: `Алексей К.: Коллеги, нужно срочно развернуть Faster-Whisper на локальной машине до 15 сентября, это блокер для всей команды.
-Данияр М.: Я беру на себя создание Django REST API эндпоинтов для передачи протоколов и задач, сделаю до 18 сентября.
-Айгерим С.: Мне необходимо подготовить интеграцию UI таблицы поручений с экспортом в CSV и проверкой валидации до конца недели.
-Руслан Д.: Согласуйте спецификацию моделей данных со мной до 16 сентября.`
-  },
-  {
-    title: 'Архитектурный синк по Offline RAG и диаризации',
-    text: `Ерлан Т.: Необходимо протестировать оффлайн-эмбеддинги для RAG-чата на модели Qwen 2.5 к 22 сентября.
-Алексей К.: Задача — настроить PyAnnote или локальный спектральный кластеризатор для разделения спикеров, дедлайн 25 сентября, приоритет средний.
-Айгерим С.: Срочно доработать модалку быстрого добавления встреч из календаря к завтрашнему дню.`
-  }
-];

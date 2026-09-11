@@ -39,7 +39,7 @@ export const CalendarHeader: React.FC = () => {
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date(2026, 8, 11)); // Today in test time (11 Sep 2026)
+    setCurrentDate(new Date());
   };
 
   return (
