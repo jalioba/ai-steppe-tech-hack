@@ -10,7 +10,8 @@ export const Header: React.FC = () => {
     setSearchQuery,
     language,
     setLanguage,
-    setIsAddMeetingOpen
+    setIsAddMeetingOpen,
+    setIsLiveMeetingOpen
   } = useMeetingContext();
 
   const titles: Record<string, { title: string; subtitle: string }> = {
@@ -157,6 +158,30 @@ export const Header: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Action Button: Live Meeting (Google Meet Style) */}
+        <button
+          className="btn btn-secondary"
+          onClick={() => setIsLiveMeetingOpen(true)}
+          style={{
+            padding: '8px 14px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#fca5a5'
+          }}
+          title="Запустить онлайн-совещание в стиле Google Meet с живой стенограммой и фиксацией решений без споров"
+        >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              animation: 'pulse 1.5s infinite'
+            }}
+          />
+          <span>Онлайн-совещание (Live)</span>
+        </button>
 
         {/* Action Button: Add Meeting */}
         <button

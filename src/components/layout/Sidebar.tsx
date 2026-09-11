@@ -6,7 +6,8 @@ import {
   CheckSquare,
   Bot,
   Sparkles,
-  HardDrive
+  HardDrive,
+  Video
 } from 'lucide-react';
 import { useMeetingContext, NavTab } from '../../context/MeetingContext';
 
@@ -20,7 +21,13 @@ interface NavItem {
 }
 
 export const Sidebar: React.FC = () => {
-  const { activeNav, setActiveNav, meetings, actionItems } = useMeetingContext();
+  const {
+    activeNav,
+    setActiveNav,
+    meetings,
+    actionItems,
+    setIsLiveMeetingOpen
+  } = useMeetingContext();
 
   const pendingTasksCount = actionItems.filter((t) => t.status !== 'completed').length;
 
@@ -199,6 +206,59 @@ export const Sidebar: React.FC = () => {
             </button>
           );
         })}
+        {/* Google Meet Style Live Meeting Card */}
+        <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setIsLiveMeetingOpen(true)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#ef4444';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
+              }}
+            >
+              <Video size={16} color="#ffffff" />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#ffffff' }}>
+                Онлайн-совещание
+              </div>
+              <div style={{ fontSize: '0.675rem', color: '#fca5a5' }}>
+                Google Meet • ИИ-консилиум
+              </div>
+            </div>
+          </button>
+        </div>
       </nav>
 
       {/* System Local Spec Footer */}
