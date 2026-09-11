@@ -3,7 +3,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Plus
+  Plus,
+  CheckSquare
 } from 'lucide-react';
 import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { useMeetingContext } from '../../context/MeetingContext';
@@ -17,6 +18,7 @@ export const CalendarHeader: React.FC = () => {
     setViewMode,
     exportIcs,
     setIsAddMeetingOpen,
+    setIsAddActionItemOpen,
     language
   } = useMeetingContext();
 
@@ -155,6 +157,16 @@ export const CalendarHeader: React.FC = () => {
         >
           <Download size={15} style={{ color: 'var(--accent-secondary)' }} />
           <span>Экспорт в .ics</span>
+        </button>
+
+        {/* Add Action Item Button */}
+        <button
+          className="btn btn-secondary"
+          onClick={() => setIsAddActionItemOpen(true)}
+          title="Добавить новое поручение в список и календарь"
+        >
+          <CheckSquare size={15} style={{ color: 'var(--accent-primary)' }} />
+          <span>+ Поручение</span>
         </button>
 
         {/* Schedule Meeting Button */}

@@ -10,8 +10,13 @@ interface DayCellProps {
 
 export const DayCell: React.FC<DayCellProps> = ({ dayInfo }) => {
   const { isToday, isCurrentMonth, dayNumber, events, dateString } = dayInfo;
-  const { setIsAddMeetingOpen, setSelectedEvent } = useMeetingContext();
+  const {
+    setIsAddMeetingOpen,
+    setIsAddActionItemOpen,
+    setTargetCreateDate
+  } = useMeetingContext();
   const [showAllPopover, setShowAllPopover] = useState(false);
+  const [showQuickAddMenu, setShowQuickAddMenu] = useState(false);
 
   const maxVisibleEvents = 3;
   const visibleEvents = events.slice(0, maxVisibleEvents);
@@ -78,26 +83,112 @@ export const DayCell: React.FC<DayCellProps> = ({ dayInfo }) => {
         </span>
 
         {/* Quick Add Button on Day Hover */}
-        <button
-          className="btn-ghost"
-          onClick={() => setIsAddMeetingOpen(true)}
-          title={`Запланировать встречу на ${dateString}`}
-          style={{
-            width: '20px',
-            height: '20px',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '4px',
-            opacity: 0.4,
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
-        >
-          <Plus size={13} />
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            className="btn-ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowQuickAddMenu(!showQuickAddMenu);
+            }}
+            title={`Добавить событие на ${dateString}`}
+            style={{
+              width: '20px',
+              height: '20px',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              opacity: showQuickAddMenu ? 1 : 0.5,
+              background: showQuickAddMenu ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => {
+              if (!showQuickAddMenu) e.currentTarget.style.opacity = '0.5';
+            }}
+          >
+            <Plus size={13} />
+          </button>
+
+          {/* Quick Add Dropdown */}
+          {showQuickAddMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '24px',
+                right: '0',
+                background: 'var(--bg-card-solid)',
+                border: '1px solid var(--border-medium)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg), 0 0 15px rgba(0,0,0,0.6)',
+                padding: '4px',
+                zIndex: 40,
+                width: '180px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 10px',
+                  color: 'var(--text-main)',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background var(--transition-fast)'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => {
+                  setTargetCreateDate(dateString);
+                  setIsAddMeetingOpen(true);
+                  setShowQuickAddMenu(false);
+                }}
+              >
+                <span>📅</span>
+                <span>Создать встречу</span>
+              </button>
+
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 10px',
+                  color: 'var(--text-main)',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background var(--transition-fast)'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(6, 182, 212, 0.15)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => {
+                  setTargetCreateDate(dateString);
+                  setIsAddActionItemOpen(true);
+                  setShowQuickAddMenu(false);
+                }}
+              >
+                <span>✅</span>
+                <span>Добавить поручение</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Events Container */}

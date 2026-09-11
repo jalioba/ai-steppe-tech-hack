@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Calendar,
@@ -10,15 +10,29 @@ import {
   FileText,
   CheckSquare,
   ShieldAlert,
-  Download
+  Download,
+  Trash2,
+  Check,
+  Award
 } from 'lucide-react';
 import { useMeetingContext } from '../../context/MeetingContext';
 import { Meeting } from '../../types/meeting';
-import { ActionItem } from '../../types/actionItem';
+import { ActionItem, ActionItemStatus } from '../../types/actionItem';
 import { formatDateDisplay } from '../../utils/dateUtils';
+import { exportMeetingProtocolToJson } from '../../services/exportService';
 
 export const EventModal: React.FC = () => {
-  const { selectedEvent, setSelectedEvent, actionItems } = useMeetingContext();
+  const {
+    selectedEvent,
+    setSelectedEvent,
+    actionItems,
+    deleteMeeting,
+    deleteActionItem,
+    updateActionItem,
+    toggleActionItemStatus
+  } = useMeetingContext();
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!selectedEvent) return null;
 
@@ -247,6 +261,52 @@ export const EventModal: React.FC = () => {
                 </div>
               )}
 
+              {/* ТЗ & User Feature: Решения без споров (Consensus) */}
+              {meeting.consensusDecisions && meeting.consensusDecisions.length > 0 && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    background: 'rgba(16, 185, 129, 0.06)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#6ee7b7',
+                      fontWeight: 600,
+                      fontSize: '0.825rem',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <Award size={15} />
+                    <span>Итоговые решения без споров (Единогласный консенсус)</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {meeting.consensusDecisions.map((cd) => (
+                      <div
+                        key={cd.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                          color: 'var(--text-main)'
+                        }}
+                      >
+                        <Check size={14} style={{ color: 'var(--accent-success)', flexShrink: 0, marginTop: '2px' }} />
+                        <div>
+                          <strong style={{ color: '#ffffff' }}>{cd.topic}:</strong> {cd.decision}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Must-Have: Темы и тезисы */}
               {meeting.topics && meeting.topics.length > 0 && (
                 <div>
@@ -397,19 +457,47 @@ export const EventModal: React.FC = () => {
                           gap: '10px'
                         }}
                       >
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--text-main)' }}>
-                            {task.task}
-                          </div>
-                          <div
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                          <button
+                            type="button"
                             style={{
-                              fontSize: '0.725rem',
-                              color: 'var(--text-subtle)',
-                              marginTop: '2px'
+                              background: task.status === 'completed' ? 'var(--accent-success)' : 'transparent',
+                              border: '1px solid',
+                              borderColor: task.status === 'completed' ? 'var(--accent-success)' : 'var(--border-medium)',
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              flexShrink: 0
                             }}
+                            onClick={() => toggleActionItemStatus(task.id)}
+                            title={task.status === 'completed' ? 'Отметить как невыполненное' : 'Отметить как выполненное'}
                           >
-                            Ответственный: <strong style={{ color: 'var(--text-muted)' }}>{task.assignee}</strong> • Срок:{' '}
-                            {task.deadline}
+                            {task.status === 'completed' && <Check size={13} color="#ffffff" />}
+                          </button>
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: '0.8125rem',
+                                color: task.status === 'completed' ? 'var(--text-subtle)' : 'var(--text-main)',
+                                textDecoration: task.status === 'completed' ? 'line-through' : 'none'
+                              }}
+                            >
+                              {task.task}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.725rem',
+                                color: 'var(--text-subtle)',
+                                marginTop: '2px'
+                              }}
+                            >
+                              Ответственный: <strong style={{ color: 'var(--text-muted)' }}>{task.assignee}</strong> • Срок:{' '}
+                              {task.deadline}
+                            </div>
                           </div>
                         </div>
                         <span
@@ -479,13 +567,38 @@ export const EventModal: React.FC = () => {
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Статус</div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '4px' }}>
-                      {actionItem.status === 'completed'
-                        ? 'Выполнено'
-                        : actionItem.status === 'in_progress'
-                        ? 'В работе'
-                        : 'Ожидает выполнения'}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginBottom: '4px' }}>
+                      Статус (клик для изменения)
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {(
+                        [
+                          { id: 'pending', label: 'Ожидает' },
+                          { id: 'in_progress', label: 'В работе' },
+                          { id: 'completed', label: 'Выполнено' }
+                        ] as const
+                      ).map((st) => {
+                        const isActive = actionItem.status === st.id;
+                        return (
+                          <button
+                            key={st.id}
+                            type="button"
+                            onClick={() => updateActionItem(actionItem.id, { status: st.id })}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '0.725rem',
+                              fontWeight: 500,
+                              borderRadius: 'var(--radius-sm)',
+                              border: isActive ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                              background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                              color: isActive ? '#ffffff' : 'var(--text-muted)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {st.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -509,21 +622,94 @@ export const EventModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="modal-footer">
-          {meeting && meeting.status === 'processed' && (
-            <div
-              style={{
-                marginRight: 'auto',
-                fontSize: '0.75rem',
-                color: 'var(--text-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Download size={13} /> Экспорт протокола (.pdf / .csv / .json) доступен в основном модуле
-            </div>
-          )}
+        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+          {/* Left Actions */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {meeting && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '6px 10px' }}
+                  onClick={() => exportMeetingProtocolToJson(meeting)}
+                  title="Скачать структурированный протокол в JSON"
+                >
+                  <Download size={14} style={{ color: 'var(--accent-secondary)' }} />
+                  <span>Скачать JSON</span>
+                </button>
+
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.75rem', padding: '6px 10px', color: 'var(--priority-high)' }}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 size={14} />
+                    <span>Удалить встречу</span>
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--priority-high)' }}>Удалить?</span>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ background: 'var(--priority-high)', padding: '4px 8px', fontSize: '0.75rem' }}
+                      onClick={() => deleteMeeting(meeting.id)}
+                    >
+                      Да
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Нет
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {actionItem && (
+              <>
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.75rem', padding: '6px 10px', color: 'var(--priority-high)' }}
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 size={14} />
+                    <span>Удалить поручение</span>
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--priority-high)' }}>Точно удалить?</span>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ background: 'var(--priority-high)', padding: '4px 8px', fontSize: '0.75rem' }}
+                      onClick={() => deleteActionItem(actionItem.id)}
+                    >
+                      Да
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Нет
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right Actions */}
           <button className="btn btn-secondary" onClick={() => setSelectedEvent(null)}>
             Закрыть
           </button>

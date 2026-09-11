@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Users, Plus } from 'lucide-react';
 import { useMeetingContext } from '../../context/MeetingContext';
 
 export const AddMeetingModal: React.FC = () => {
-  const { isAddMeetingOpen, setIsAddMeetingOpen, addMeeting, currentDate } = useMeetingContext();
+  const {
+    isAddMeetingOpen,
+    setIsAddMeetingOpen,
+    addMeeting,
+    currentDate,
+    targetCreateDate,
+    setTargetCreateDate
+  } = useMeetingContext();
 
-  const defaultDateStr = currentDate.toISOString().slice(0, 10);
+  const defaultDateStr = targetCreateDate || currentDate.toISOString().slice(0, 10);
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(defaultDateStr);
   const [startTime, setStartTime] = useState('11:00');
   const [endTime, setEndTime] = useState('12:00');
   const [participantsText, setParticipantsText] = useState('');
+
+  useEffect(() => {
+    if (isAddMeetingOpen) {
+      setDate(targetCreateDate || currentDate.toISOString().slice(0, 10));
+    }
+  }, [isAddMeetingOpen, targetCreateDate, currentDate]);
 
   if (!isAddMeetingOpen) return null;
 
@@ -34,12 +47,18 @@ export const AddMeetingModal: React.FC = () => {
     });
 
     setIsAddMeetingOpen(false);
+    setTargetCreateDate(null);
     setTitle('');
     setParticipantsText('');
   };
 
+  const handleClose = () => {
+    setIsAddMeetingOpen(false);
+    setTargetCreateDate(null);
+  };
+
   return (
-    <div className="modal-backdrop" onClick={() => setIsAddMeetingOpen(false)}>
+    <div className="modal-backdrop" onClick={handleClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">

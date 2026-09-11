@@ -6,6 +6,7 @@ import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
 import { EventModal } from './EventModal';
 import { AddMeetingModal } from './AddMeetingModal';
+import { AddActionItemModal } from './AddActionItemModal';
 
 export const CalendarView: React.FC = () => {
   const { viewMode } = useMeetingContext();
@@ -24,6 +25,7 @@ export const CalendarView: React.FC = () => {
       {/* Detail Modals */}
       <EventModal />
       <AddMeetingModal />
+      <AddActionItemModal />
     </div>
   );
 };
