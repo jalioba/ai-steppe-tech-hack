@@ -7,7 +7,7 @@ export type ActionItemStatus = 'pending' | 'in_progress' | 'completed';
 
 export interface ActionItem {
   id: string;
-  meetingId: string;
+  meetingId?: string;
   meetingTitle?: string;
 
   // ТЗ: Ответственный
@@ -24,4 +24,8 @@ export interface ActionItem {
 
   // Статус выполнения
   status: ActionItemStatus;
+
+  // Флаг происхождения (создано ИИ или пользователем)
+  isAiGenerated?: boolean;
+  createdAt?: string;
 }

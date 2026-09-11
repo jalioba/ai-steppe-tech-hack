@@ -14,6 +14,14 @@ export interface ProtocolRisk {
   severity: 'low' | 'medium' | 'high';
 }
 
+export interface ConsensusDecision {
+  id: string;
+  topic: string;
+  decision: string;
+  status: 'consensus' | 'disputed' | 'open';
+  participantsAgreed?: string[];
+}
+
 export interface Meeting {
   id: string;
   title: string;
@@ -29,6 +37,9 @@ export interface Meeting {
   // Must-Have ТЗ: Принятые решения — четкий список того, о чем договорились
   decisions?: string[];
 
+  // Решения без споров (Consensus decisions)
+  consensusDecisions?: ConsensusDecision[];
+
   // Must-Have ТЗ: Темы и тезисы — разделение встречи на смысловые блоки
   topics?: ProtocolTopic[];
 
@@ -38,8 +49,12 @@ export interface Meeting {
   // Бонус ТЗ: Детекция рисков и блокеров
   risks?: ProtocolRisk[];
 
+  // Полный транскрипт встречи для RAG-чата и анализа
+  transcript?: string;
+
   // Аудио метаданные (для будущего этапа локального Whisper)
   audioFileName?: string;
   audioDuration?: string;
   language?: 'ru' | 'kz' | 'en' | 'mixed';
+  createdAt?: string;
 }
